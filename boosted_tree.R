@@ -5,7 +5,7 @@ lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
 query <- function(...) dbGetQuery(mychannel, ...)
 
-source('../RMySQL_Update.R')
+source('../../RMySQL_Update.R')
 var_whse <- 3
 var_build <- 2
 
@@ -156,7 +156,7 @@ sqlquery <- paste("SELECT
                   JOIN 
                   slotting.caseforecast_equip
                   WHERE
-                  workday_date between '2018-05-14' and '2018-05-14'
+                  workday_date between '2018-05-15' and '2018-05-15'
                   AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date, equip_type, hour_hour", sep = "")
 preddata <- query(sqlquery)
@@ -175,7 +175,7 @@ sqlquery <- paste("SELECT
                   JOIN
                     slotting.caseforecast_equip
                   WHERE
-                    workday_date BETWEEN '2018-05-14' AND '2018-05-14'
+                    workday_date BETWEEN '2018-05-15' AND '2018-05-15'
                     AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date , equip_type , hour_hour", sep = "")
 forecast_insert <- query(sqlquery)
