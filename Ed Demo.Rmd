@@ -1,0 +1,141 @@
+#Load all needed packages and create MySQL connection
+
+```{r include=FALSE}
+
+packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr')
+purrr::walk(packages, library, character.only = TRUE)
+lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
+mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
+query <- function(...) dbGetQuery(mychannel, ...)
+
+```
+
+
+#Load historical data
+
+```{r}
+var_whse <- 3
+var_build <- 2
+
+sqlquery <- paste("SELECT 
+                  hist_equip as EQUIP,
+                  CASE
+                  WHEN predicted_availhour < 6 THEN 6
+                  WHEN predicted_availhour > 16 THEN 16
+                  ELSE predicted_availhour
+                  END AS HOUR,
+                  workday_workday AS WORKDAY,
+                  workday_weekofmon AS MONTHWEEK,
+                  workday_weekday AS WEEKDAY,
+                  workday_dayofmon AS MONTHDAY,
+                  workday_month AS MONTH,
+                  YEAR(predicted_availdate) as YEAR,
+                  workday_befvac AS BEFVAC,
+                  workday_aftvac AS AFTVAC,
+                  workday_befchrist AS BEFCHRIST,
+                  workday_aftchrist AS AFTCHRIST,
+                  SUM(CASE
+                  WHEN
+                  hist_twoday = 1
+                  AND predicted_availhour < 6
+                  THEN
+                  1
+                  ELSE 1
+                  END) AS BOXES
+                  FROM
+                  slotting.hist_casevol
+                  JOIN
+                  slotting.workdayofweek ON predicted_availdate = workday_date
+                  WHERE 
+                  hist_whse = ",var_whse," and hist_build = ",var_build," 
+                  AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
+                  AND predicted_availhour BETWEEN 7 AND 16
+                  GROUP BY predicted_availdate , hist_equip, 
+                  CASE
+                  WHEN predicted_availhour < 6 THEN 6
+                  WHEN predicted_availhour > 16 THEN 16
+                  ELSE predicted_availhour
+                  END
+                  ORDER BY predicted_availdate , CASE
+                  WHEN predicted_availhour < 6 THEN 6
+                  WHEN predicted_availhour > 16 THEN 16
+                  ELSE predicted_availhour
+                  END", sep = "")
+data <- query(sqlquery)
+
+head(data)
+
+```
+
+
+#Set seed and determine training and test data
+```{r}
+set.seed(222)
+trainIndex <- createDataPartition(data$BOXES, 
+                                  p = .75, 
+                                  list = FALSE, 
+                                  times = 1)
+
+dataTrain <- data[ trainIndex,]
+dataTest  <- data[-trainIndex,]
+
+head(dataTrain)
+head(dataTest)
+
+data_formula_boxes <- BOXES ~ EQUIP + HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHRIST + AFTCHRIST
+
+#boxes data training
+dataX_Train_box <- build.x(data_formula_boxes, data=dataTrain,
+                       contrasts=FALSE,
+                       sparse=TRUE)
+dataY_Train_box <- build.y(data_formula_boxes,data=dataTrain) 
+
+dataX_Test_box <- build.x(data_formula_boxes, data=dataTest,
+                      contrasts=FALSE,
+                      sparse=TRUE)
+dataY_Test_box <- build.y(data_formula_boxes,data=dataTest)
+
+xgTrain_box <- xgb.DMatrix(data=dataX_Train_box,
+                       label=dataY_Train_box)
+
+xgVal_box <- xgb.DMatrix(data=dataX_Test_box,
+                     label=dataY_Test_box)
+```
+
+#Create the Linear regression model
+```{r}
+model.lm <- lm(data_formula_boxes, data=data)
+mse <- mean(residuals(model.lm)^2)
+rmse <- sqrt(mse)
+rmse
+
+
+```
+
+
+#Create the decision tree model
+```{r}
+
+```
+
+
+#Create the random forest model
+```{r}
+
+```
+
+
+#Create the neural net model
+```{r}
+
+```
+
+
+#Create the boosted random forest model
+```{r}
+
+```
+
+
+
+
