@@ -2,7 +2,7 @@
 
 ```{r include=FALSE}
 
-packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet')
+packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr')
 purrr::walk(packages, library, character.only = TRUE)
 lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
@@ -13,7 +13,7 @@ query <- function(...) dbGetQuery(mychannel, ...)
 
 #Load historical data
 
-```{r include=FALSE}
+```{r}
 var_whse <- 3
 var_build <- 2
 
@@ -70,7 +70,10 @@ head(data)
 
 #Set seed and determine training and test data
 
+
 ```{r include=FALSE}
+
+
 
 set.seed(222)
 trainIndex <- createDataPartition(data$BOXES, 
@@ -106,25 +109,19 @@ xgVal_box <- xgb.DMatrix(data=dataX_Test_box,
 
 #Create the Linear regression model
 
+
 ```{r echo=FALSE}
 model.lm <- lm(data_formula_boxes, data=dataTrain)
 prediction.lm <- predict(model.lm, newdata=dataTest)
 rmse.lm <- sqrt(mean((dataTest$BOXES-prediction.lm)^2))
 rmse.lm
 
+
 ```
 
 
 #Create the decision tree model
-
-```{r echo=TRUE}
-
-model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)
-prediction.dt <- predict(model.dt, newdata = dataTest)
-rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
-rmse.dt
-importance(model.dt)
-
+```{r}
 
 ```
 
@@ -132,32 +129,17 @@ importance(model.dt)
 #Create the random forest model
 ```{r}
 
-dataTrain_fac <- dataTrain %>% mutate_if(is.character, as.factor)
-dataTest_fac <- dataTest %>% mutate_if(is.character, as.factor)
-model.rf <- randomForest(data_formula_boxes, data = dataTrain_fac)
-prediction.rf <- predict(model.rf, newdata = dataTest_fac)
-rmse.rf <- sqrt(mean((dataTest_fac$BOXES-prediction.rf)^2))
-rmse.dt
-importance(model.rf, order(TRUE))
-
 ```
 
 
-#Create the neural net model  ***THIS IS NOT WORKING!!***
+#Create the neural net model
 ```{r}
-library('neuralnet')
-str(dataTrain.mm)
-dataTrain.mm <- model.matrix(~ BOXES + EQUIP,data = dataTrain)
-model.nn <- neuralnet(data_formula_boxes, hidden=3, data = dataTrain.mm)
 
 ```
-
 
 
 #Create the boosted random forest model
 ```{r}
-xg14_box <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
-                  early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .1, max_depth = 7)
 
 ```
 
