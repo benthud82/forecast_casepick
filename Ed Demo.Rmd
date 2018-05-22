@@ -69,7 +69,9 @@ head(data)
 
 
 #Set seed and determine training and test data
+<<<<<<< HEAD
 ```{r include=FALSE}
+
 set.seed(222)
 trainIndex <- createDataPartition(data$BOXES, 
                                   p = .75, 
@@ -103,17 +105,18 @@ xgVal_box <- xgb.DMatrix(data=dataX_Test_box,
 ```
 
 #Create the Linear regression model
+<<<<<<< HEAD
 ```{r echo=FALSE}
 model.lm <- lm(data_formula_boxes, data=dataTrain)
 prediction.lm <- predict(model.lm, newdata=dataTest)
 rmse.lm <- sqrt(mean((dataTest$BOXES-prediction.lm)^2))
 rmse.lm
 
-
 ```
 
 
 #Create the decision tree model
+
 ```{r echo=TRUE}
 
 model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)
@@ -121,6 +124,7 @@ prediction.dt <- predict(model.dt, newdata = dataTest)
 rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
 rmse.dt
 importance(model.dt)
+
 
 ```
 
@@ -146,13 +150,12 @@ str(dataTrain.mm)
 dataTrain.mm <- model.matrix(~ BOXES + EQUIP,data = dataTrain)
 model.nn <- neuralnet(data_formula_boxes, hidden=3, data = dataTrain.mm)
 
-
 ```
+
 
 
 #Create the boosted random forest model
 ```{r}
-
 xg14_box <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
                   early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .1, max_depth = 7)
 
