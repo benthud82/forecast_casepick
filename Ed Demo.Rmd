@@ -18,7 +18,6 @@ var_whse <- 3
 var_build <- 2
 
 sqlquery <- paste("SELECT 
-                  hist_equip as EQUIP,
                   CASE
                   WHEN predicted_availhour < 6 THEN 6
                   WHEN predicted_availhour > 16 THEN 16
@@ -48,8 +47,9 @@ sqlquery <- paste("SELECT
                   slotting.workdayofweek ON predicted_availdate = workday_date
                   WHERE 
                   hist_whse = ",var_whse," and hist_build = ",var_build," 
+                  AND hist_equip = 'PALLETJACK'
                   AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
-                  AND predicted_availhour BETWEEN 7 AND 16
+                  AND predicted_availhour BETWEEN 6 AND 16
                   GROUP BY predicted_availdate , hist_equip, 
                   CASE
                   WHEN predicted_availhour < 6 THEN 6
@@ -84,7 +84,7 @@ dataTest  <- data[-trainIndex,]
 head(dataTrain)
 head(dataTest)
 
-data_formula_boxes <- BOXES ~ EQUIP + HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHRIST + AFTCHRIST
+data_formula_boxes <- BOXES ~ HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHRIST + AFTCHRIST
 
 #boxes data training
 dataX_Train_box <- build.x(data_formula_boxes, data=dataTrain,
@@ -111,6 +111,7 @@ model.lm <- lm(data_formula_boxes, data=dataTrain)
 prediction.lm <- predict(model.lm, newdata=dataTest)
 rmse.lm <- sqrt(mean((dataTest$BOXES-prediction.lm)^2))
 rmse.lm
+plot(dataTest$BOXES,prediction.lm,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
 
 ```
 
@@ -123,7 +124,8 @@ model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)
 prediction.dt <- predict(model.dt, newdata = dataTest)
 rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
 rmse.dt
-importance(model.dt)
+ plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+
 
 
 ```
@@ -143,12 +145,26 @@ importance(model.rf, order(TRUE))
 ```
 
 
-#Create the neural net model  ***THIS IS NOT WORKING!!***
+#Create the neural net model  ***Clean up the code to match the other chunks***
 ```{r}
 library('neuralnet')
-str(dataTrain.mm)
-dataTrain.mm <- model.matrix(~ BOXES + EQUIP,data = dataTrain)
-model.nn <- neuralnet(data_formula_boxes, hidden=3, data = dataTrain.mm)
+
+maxs <- apply(dataTrain, 2, max)
+mins <- apply(dataTrain, 2, min)
+scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))
+scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))
+n <- names(scaled_train)
+f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
+
+nn <- neuralnet(f,data=scaled_train,hidden=c(5),linear.output=F)
+pr.nn <- compute(nn,scaled_test[,0:11])
+pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
+rmse.nn
+
+ plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+ abline(0,1,lwd=2)
 
 ```
 
@@ -156,8 +172,13 @@ model.nn <- neuralnet(data_formula_boxes, hidden=3, data = dataTrain.mm)
 
 #Create the boosted random forest model
 ```{r}
-xg14_box <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
+model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
                   early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .1, max_depth = 7)
+dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
+
+prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
+plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest',pch=18, cex=0.7)
+ abline(0,1,lwd=2)
 
 ```
 
