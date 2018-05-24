@@ -8,6 +8,7 @@ query <- function(...) dbGetQuery(mychannel, ...)
 source('../../RMySQL_Update.R')
 var_whse <- 3
 var_build <- 2
+date_today <- Sys.Date()
 
 #Query to pull all lines
 sqlquery <- paste("SELECT 
@@ -44,9 +45,9 @@ sqlquery <- paste("SELECT
                   ELSE hist_cubeinch
                   END) AS CUBE
                   FROM
-                  slotting.hist_casevol
+                  printvis.hist_casevol
                   JOIN
-                  slotting.workdayofweek ON predicted_availdate = workday_date
+                  printvis.workdayofweek ON predicted_availdate = workday_date
                   WHERE 
                   hist_whse = ",var_whse," and hist_build = ",var_build," 
                   AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
@@ -150,13 +151,13 @@ sqlquery <- paste("SELECT
                   0 AS BOXES,
                   0 as CUBE
                   FROM
-                  slotting.workdayofweek
+                  printvis.workdayofweek
                   JOIN
-                  slotting.forecasthours
+                  printvis.forecasthours
                   JOIN 
-                  slotting.caseforecast_equip
+                  printvis.caseforecast_equip
                   WHERE
-                  workday_date between '2018-05-24' and '2018-05-25'
+                  workday_date between '",date_today,"' AND '",date_today,"'
                   AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date, equip_type, hour_hour", sep = "")
 preddata <- query(sqlquery)
@@ -169,13 +170,13 @@ data_new_cube <- build.x(data_formula_cube, data=preddata, contrasts = FALSE, sp
 sqlquery <- paste("SELECT 
                     ",var_whse,", ",var_build,", workday_date, hour_hour, equip_type
                   FROM
-                    slotting.workdayofweek
+                    printvis.workdayofweek
                   JOIN
-                    slotting.forecasthours
+                    printvis.forecasthours
                   JOIN
-                    slotting.caseforecast_equip
+                    printvis.caseforecast_equip
                   WHERE
-                    workday_date BETWEEN '2018-05-24' AND '2018-05-25'
+                    workday_date BETWEEN  '",date_today,"' AND '",date_today,"'
                     AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date , equip_type , hour_hour", sep = "")
 forecast_insert <- query(sqlquery)
@@ -188,7 +189,7 @@ forecast_insert$cube <- predict(xg14_cube,newdata = data_new_cube)
 forecast_insert$fcase_minuteforecast <- 0
 
 #update mysql table forecast_case
-rmysql_update(mychannel, forecast_insert, 'slotting.forecast_case', verbose = FALSE)
+rmysql_update(mychannel, forecast_insert, 'printvis.forecast_case', verbose = FALSE)
 
 
 
