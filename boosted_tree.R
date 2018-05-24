@@ -156,7 +156,7 @@ sqlquery <- paste("SELECT
                   JOIN 
                   slotting.caseforecast_equip
                   WHERE
-                  workday_date between '2018-05-23' and '2018-05-23'
+                  workday_date between '2018-05-24' and '2018-05-25'
                   AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date, equip_type, hour_hour", sep = "")
 preddata <- query(sqlquery)
@@ -175,7 +175,7 @@ sqlquery <- paste("SELECT
                   JOIN
                     slotting.caseforecast_equip
                   WHERE
-                    workday_date BETWEEN '2018-05-23' AND '2018-05-23'
+                    workday_date BETWEEN '2018-05-24' AND '2018-05-25'
                     AND hour_hour BETWEEN 6 AND 16
                   ORDER BY workday_date , equip_type , hour_hour", sep = "")
 forecast_insert <- query(sqlquery)
