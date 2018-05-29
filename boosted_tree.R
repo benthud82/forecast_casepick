@@ -2,12 +2,28 @@ packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', '
 purrr::walk(packages, library, character.only = TRUE)
 
 lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
-mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
+#dev
+#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
+
+#prod
+mychannel <- dbConnect(MySQL(), user="root", pass="", host="127.0.0.1")
 query <- function(...) dbGetQuery(mychannel, ...)
 
 source('../../RMySQL_Update.R')
-var_whse <- 3
-var_build <- 2
+
+#list_whse <- list(2,3,6,7,9)
+list_whse <- list(3)
+
+for(i in list_whse){
+var_whse <- i
+
+if(var_whse == 3){
+  var_build <- 2
+}else{
+  var_build <- 1
+}
+
+
 date_today <- Sys.Date()
 
 #Query to pull all lines
@@ -65,7 +81,7 @@ sqlquery <- paste("SELECT
                   END", sep = "")
 data <- query(sqlquery)
 
-set.seed(222)
+set.seed(111)
 trainIndex <- createDataPartition(data$BOXES, 
                                   p = .75, 
                                   list = FALSE, 
@@ -191,6 +207,7 @@ forecast_insert$fcase_minuteforecast <- 0
 #update mysql table forecast_case
 rmysql_update(mychannel, forecast_insert, 'printvis.forecast_case', verbose = FALSE)
 
+} #end of whse_list loop
 
 
 
