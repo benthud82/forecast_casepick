@@ -111,7 +111,8 @@ model.lm <- lm(data_formula_boxes, data=dataTrain)
 prediction.lm <- predict(model.lm, newdata=dataTest)
 rmse.lm <- sqrt(mean((dataTest$BOXES-prediction.lm)^2))
 rmse.lm
-plot(dataTest$BOXES,prediction.lm,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.lm,col='blue',main='Real vs predicted Linear Regression',pch=18, cex=0.7)
+abline(0,1,lwd=2)
 
 ```
 
@@ -124,8 +125,8 @@ model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)
 prediction.dt <- predict(model.dt, newdata = dataTest)
 rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
 rmse.dt
- plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
-
+ plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7)
+abline(0,1,lwd=2)
 
 
 ```
@@ -156,14 +157,14 @@ scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins)
 n <- names(scaled_train)
 f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
 
-nn <- neuralnet(f,data=scaled_train,hidden=c(5),linear.output=F)
+nn <- neuralnet(f,data=scaled_train,hidden=c(5,3),linear.output=F)
 pr.nn <- compute(nn,scaled_test[,0:11])
 pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
 test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
 rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
 rmse.nn
 
- plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+ plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7)
  abline(0,1,lwd=2)
 
 ```
