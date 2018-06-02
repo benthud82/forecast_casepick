@@ -125,7 +125,7 @@ model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)
 prediction.dt <- predict(model.dt, newdata = dataTest)
 rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
 rmse.dt
- plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7)
 abline(0,1,lwd=2)
 
 
@@ -140,8 +140,9 @@ dataTest_fac <- dataTest %>% mutate_if(is.character, as.factor)
 model.rf <- randomForest(data_formula_boxes, data = dataTrain_fac)
 prediction.rf <- predict(model.rf, newdata = dataTest_fac)
 rmse.rf <- sqrt(mean((dataTest_fac$BOXES-prediction.rf)^2))
-rmse.dt
-importance(model.rf, order(TRUE))
+rmse.rf
+plot(dataTest$BOXES,prediction.rf,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+abline(0,1,lwd=2)
 
 ```
 
