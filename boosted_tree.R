@@ -9,7 +9,7 @@ lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 mychannel <- dbConnect(MySQL(), user="root", pass="", host="127.0.0.1")
 query <- function(...) dbGetQuery(mychannel, ...)
 
-source('../../RMySQL_Update.R')
+source('RMySQL_Update.R')
 
 #list_whse <- list(2,3,6,7,9)
 list_whse <- list(3)
