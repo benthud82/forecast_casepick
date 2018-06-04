@@ -49,7 +49,7 @@ sqlquery <- paste("SELECT
                   hist_whse = ",var_whse," and hist_build = ",var_build," 
                   AND hist_equip = 'PALLETJACK'
                   AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
-                  AND predicted_availhour BETWEEN 6 AND 16
+                  AND predicted_availhour BETWEEN 7 AND 16
                   GROUP BY predicted_availdate , hist_equip, 
                   CASE
                   WHEN predicted_availhour < 6 THEN 6
