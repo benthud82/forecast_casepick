@@ -2,10 +2,17 @@
 
 ```{r include=FALSE}
 
-packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet')
+packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet', 'tictoc')
 purrr::walk(packages, library, character.only = TRUE)
 lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
-mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
+#dev
+#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
+
+#NY Server Prod
+#mychannel <- dbConnect(MySQL(), user="root", pass="", host="127.0.0.1")
+
+#Google Prod
+mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
 query <- function(...) dbGetQuery(mychannel, ...)
 
 ```
@@ -42,9 +49,9 @@ sqlquery <- paste("SELECT
                   ELSE 1
                   END) AS BOXES
                   FROM
-                  slotting.hist_casevol
+                  printvis.hist_casevol
                   JOIN
-                  slotting.workdayofweek ON predicted_availdate = workday_date
+                  printvis.workdayofweek ON predicted_availdate = workday_date
                   WHERE 
                   hist_whse = ",var_whse," and hist_build = ",var_build," 
                   AND hist_equip = 'PALLETJACK'
@@ -158,7 +165,7 @@ scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins)
 n <- names(scaled_train)
 f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
 
-nn <- neuralnet(f,data=scaled_train,hidden=c(5,3),linear.output=F)
+nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)
 pr.nn <- compute(nn,scaled_test[,0:11])
 pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
 test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
@@ -174,8 +181,10 @@ rmse.nn
 
 #Create the boosted random forest model
 ```{r}
+tic()
 model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
-                  early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .1, max_depth = 7)
+                  early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=8,eta = .1, max_depth = 7)
+toc()
 dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
 
 prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)

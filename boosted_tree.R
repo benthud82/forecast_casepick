@@ -1,12 +1,16 @@
-packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret')
+packages <- c('tictoc', 'useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret')
 purrr::walk(packages, library, character.only = TRUE)
 
 lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 #dev
 #mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
 
-#prod
+#NY Server Prod
 mychannel <- dbConnect(MySQL(), user="root", pass="", host="127.0.0.1")
+
+#Google Prod
+#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
+
 query <- function(...) dbGetQuery(mychannel, ...)
 
 source('RMySQL_Update.R')
@@ -140,8 +144,10 @@ xgVal_cube <- xgb.DMatrix(data=dataX_Test_cube,
 #                 print_every_n = 20, watchlist = list(train=xgTrain, validate=xgVal), early_stopping_rounds=250,eta = .01, max_depth = 10)
 
 #box model
+tic()
 xg14_box <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
                   early_stopping_rounds=250, nrounds = 10000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .01, max_depth = 7)
+toc()
 #cube model
 xg14_cube <- xgb.train(data=xgTrain_cube, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_cube), 
                   early_stopping_rounds=250, nrounds = 10000, num_parallel_tree=20, print_every_n = 20, nthread=4,eta = .01, max_depth = 7)
