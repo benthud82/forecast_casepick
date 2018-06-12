@@ -1,5 +1,10 @@
 #Load all needed packages and create MySQL connection
 
+Add details here of what you are going to do.
+\newpage
+
+
+
 ```{r include=FALSE}
 
 packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet', 'tictoc')
@@ -112,6 +117,7 @@ xgVal_box <- xgb.DMatrix(data=dataX_Test_box,
 ```
 
 #Create the Linear regression model
+![Linear Regression - Least Squares](regression.png)
 
 ```{r echo=FALSE}
 model.lm <- lm(data_formula_boxes, data=dataTrain)
