@@ -1,27 +1,30 @@
 ---
 output:
-  html_document: default
-  pdf_document: default
   word_document: default
+  pdf_document: default
+  html_document: default
 ---
+
+<div style="margin-bottom:100px; font-family:calibri;">
 #R Statistics Demo - Model Comparison
 
-The following demo will compare 4 statistical models:
-1. Linear Regression
-2. Decision Tree
-3. Random Forest
-4. Neural Network
-5. Boosted Regression Tree
+The following demo will test 5 predictive models:
 
-\newpage
+1.  Linear Regression
+2.  Decision Tree
+3.  Random Forest
+4.  Neural Net
+5.  Boosted Tree
+
+The measuring statistics will be root mean squared error (RMSE).
+</div>
 
 
-
-```{r include=FALSE}
-
-packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet', 'tictoc', 'tinytex')
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+packages <- c('useful', 'coefplot', 'xgboost', 'here', 'magrittr', 'dygraphs', 'dplyr', 'RMySQL', 'caret', 'purrr', 'randomForest', 'rpart', 'neuralnet', 'tictoc', 'tinytex', 'DT')
 purrr::walk(packages, library, character.only = TRUE)
-lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
+#lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 #dev
 #mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
 
@@ -31,13 +34,13 @@ lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 #Google Prod
 mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
 query <- function(...) dbGetQuery(mychannel, ...)
-
+  
 ```
 
 
 #Load historical data
 
-```{r include=FALSE}
+```{r echo=TRUE}
 var_whse <- 3
 var_build <- 2
 
@@ -55,8 +58,8 @@ sqlquery <- paste("SELECT
                   YEAR(predicted_availdate) as YEAR,
                   workday_befvac AS BEFVAC,
                   workday_aftvac AS AFTVAC,
-                  workday_befchrist AS BEFCHRIST,
-                  workday_aftchrist AS AFTCHRIST,
+                  workday_befchrist AS BEFCHR,
+                  workday_aftchrist AS AFTCHR,
                   SUM(CASE
                   WHEN
                   hist_twoday = 1
@@ -87,6 +90,7 @@ sqlquery <- paste("SELECT
                   END", sep = "")
 data <- query(sqlquery)
 
+DT::datatable(head(data))
 head(data)
 
 ```
@@ -94,7 +98,7 @@ head(data)
 
 #Set seed and determine training and test data
 
-```{r include=FALSE}
+```{r echo=TRUE}
 
 set.seed(222)
 trainIndex <- createDataPartition(data$BOXES, 
@@ -105,10 +109,11 @@ trainIndex <- createDataPartition(data$BOXES,
 dataTrain <- data[ trainIndex,]
 dataTest  <- data[-trainIndex,]
 
-head(dataTrain)
-head(dataTest)
+DT::datatable(head(dataTrain))
+DT::datatable(head(dataTest))
 
-data_formula_boxes <- BOXES ~ HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHRIST + AFTCHRIST
+
+data_formula_boxes <- BOXES ~ HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHR + AFTCHR
 
 #boxes data training
 dataX_Train_box <- build.x(data_formula_boxes, data=dataTrain,
@@ -199,15 +204,15 @@ abline(0,1,lwd=2)
 
 #Create the boosted random forest model
 ```{r}
-tic()
-model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
-                  early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=8,eta = .1, max_depth = 7)
-toc()
-dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
-
-prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
-plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest',pch=18, cex=0.7)
- abline(0,1,lwd=2)
+# tic()
+# model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box), 
+#                   early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=8,eta = .1, max_depth = 7)
+# toc()
+# dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
+# 
+# prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
+# plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest',pch=18, cex=0.7)
+#  abline(0,1,lwd=2)
 
 ```
 
