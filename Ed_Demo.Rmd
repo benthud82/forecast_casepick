@@ -1,7 +1,8 @@
 ---
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
+  word_document: default
 ---
 #R Statistics Demo - Model Comparison
 
@@ -171,26 +172,26 @@ abline(0,1,lwd=2)
 ```
 
 
-#Create the neural net model  ***Clean up the code to match the other chunks***
+#Create the neural net mode
 ```{r}
-library('neuralnet')
-
-maxs <- apply(dataTrain, 2, max)
-mins <- apply(dataTrain, 2, min)
-scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))
-scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))
-n <- names(scaled_train)
-f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
-
-nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)
-pr.nn <- compute(nn,scaled_test[,0:11])
-pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
-test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
-rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
-rmse.nn
-
- plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7)
- abline(0,1,lwd=2)
+# library('neuralnet')
+# 
+# maxs <- apply(dataTrain, 2, max)
+# mins <- apply(dataTrain, 2, min)
+# scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))
+# scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))
+# n <- names(scaled_train)
+# f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
+# 
+# nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)
+# pr.nn <- compute(nn,scaled_test[,0:11])
+# pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+# test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+# rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
+# rmse.nn
+# 
+#  plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7)
+#  abline(0,1,lwd=2)
 
 ```
 
