@@ -1,7 +1,7 @@
 ---
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 #R Statistics Demo - Model Comparison
 
@@ -25,10 +25,10 @@ lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)
 #mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
 
 #NY Server Prod
-mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
+#mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
 
 #Google Prod
-#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
+mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
 query <- function(...) dbGetQuery(mychannel, ...)
 
 ```
