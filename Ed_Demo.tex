@@ -125,16 +125,173 @@
 \section{R Statistics Demo - Model
 Comparison}\label{r-statistics-demo---model-comparison}
 
-The following demo will compare 4 statistical models: 1. Linear
-Regression 2. Decision Tree 3. Random Forest 4. Neural Network 5.
-Boosted Regression Tree
+Goal of demo is to accurately predict Sparks case pick volume by
+hour/day.
 
-\newpage
+Dependent variable: boxes received
+
+Independent variables:
+
+\begin{itemize}
+\tightlist
+\item
+  Hour of Day
+\item
+  Workday of Month - business day of month (weekends are excluded)
+\item
+  Week of Month - week number of month
+\item
+  Week Day - day number of week (2=mon, 6=fri)
+\item
+  Day of Month - day of month (weekends are included)
+\item
+  Month of Year - Month number of year (1-12)
+\item
+  Year
+\item
+  Before Vacation - Is this a day before holiday? (1=yes, 0=no)
+\item
+  After Vacation - Is this a day after a holiday? (1=yes, 0=no)
+\item
+  Before Chirstmas - Is this the day before Christmas? (1=yes, 0=no)
+\item
+  After Christmas - Is this the day after Christmas? (1=yes, 0=no)
+\end{itemize}
+
+The following demo will test 5 predictive models:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Linear Regression
+\item
+  Decision Tree
+\item
+  Random Forest
+\item
+  Neural Net
+\item
+  Boosted Tree
+\end{enumerate}
+
+The measuring statistic will be root mean squared error (RMSE).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{knitr}\OperatorTok{::}\NormalTok{opts_chunk}\OperatorTok{$}\KeywordTok{set}\NormalTok{(}\DataTypeTok{message =} \OtherTok{FALSE}\NormalTok{)}
+\NormalTok{packages <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\StringTok{'useful'}\NormalTok{, }\StringTok{'coefplot'}\NormalTok{, }\StringTok{'xgboost'}\NormalTok{, }\StringTok{'here'}\NormalTok{, }\StringTok{'magrittr'}\NormalTok{, }\StringTok{'dygraphs'}\NormalTok{, }\StringTok{'dplyr'}\NormalTok{, }\StringTok{'RMySQL'}\NormalTok{, }\StringTok{'caret'}\NormalTok{, }\StringTok{'purrr'}\NormalTok{, }\StringTok{'randomForest'}\NormalTok{, }\StringTok{'rpart'}\NormalTok{, }\StringTok{'neuralnet'}\NormalTok{, }\StringTok{'tictoc'}\NormalTok{, }\StringTok{'tinytex'}\NormalTok{, }\StringTok{'DT'}\NormalTok{)}
+\NormalTok{purrr}\OperatorTok{::}\KeywordTok{walk}\NormalTok{(packages, library, }\DataTypeTok{character.only =} \OtherTok{TRUE}\NormalTok{)}
+\CommentTok{#lapply( dbListConnections( dbDriver( drv = "MySQL")), dbDisconnect)}
+\CommentTok{#dev}
+\CommentTok{#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")}
+
+\CommentTok{#NY Server Prod}
+\NormalTok{mychannel <-}\StringTok{ }\KeywordTok{dbConnect}\NormalTok{(}\KeywordTok{MySQL}\NormalTok{(), }\DataTypeTok{user=}\StringTok{"root"}\NormalTok{, }\DataTypeTok{pass=}\StringTok{"dave41"}\NormalTok{, }\DataTypeTok{host=}\StringTok{"127.0.0.1"}\NormalTok{)}
+
+\CommentTok{#Google Prod}
+\CommentTok{#mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")}
+
+\NormalTok{query <-}\StringTok{ }\ControlFlowTok{function}\NormalTok{(...) }\KeywordTok{dbGetQuery}\NormalTok{(mychannel, ...)}
+\end{Highlighting}
+\end{Shaded}
 
 \section{Load historical data}\label{load-historical-data}
 
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# var_whse <- 3}
+\CommentTok{# var_build <- 2}
+\CommentTok{# }
+\CommentTok{# sqlquery <- paste("SELECT }
+\CommentTok{#                   CASE}
+\CommentTok{#                   WHEN predicted_availhour < 6 THEN 6}
+\CommentTok{#                   WHEN predicted_availhour > 16 THEN 16}
+\CommentTok{#                   ELSE predicted_availhour}
+\CommentTok{#                   }\RegionMarkerTok{END}\CommentTok{ AS HOUR,}
+\CommentTok{#                   workday_workday AS WORKDAY,}
+\CommentTok{#                   workday_weekofmon AS MONTHWEEK,}
+\CommentTok{#                   workday_weekday AS WEEKDAY,}
+\CommentTok{#                   workday_dayofmon AS MONTHDAY,}
+\CommentTok{#                   workday_month AS MONTH,}
+\CommentTok{#                   YEAR(predicted_availdate) as YEAR,}
+\CommentTok{#                   workday_befvac AS BEFVAC,}
+\CommentTok{#                   workday_aftvac AS AFTVAC,}
+\CommentTok{#                   workday_befchrist AS BEFCHR,}
+\CommentTok{#                   workday_aftchrist AS AFTCHR,}
+\CommentTok{#                   SUM(CASE}
+\CommentTok{#                   WHEN}
+\CommentTok{#                   hist_twoday = 1}
+\CommentTok{#                   AND predicted_availhour < 6}
+\CommentTok{#                   THEN}
+\CommentTok{#                   1}
+\CommentTok{#                   ELSE 1}
+\CommentTok{#                   }\RegionMarkerTok{END}\CommentTok{) AS BOXES}
+\CommentTok{#                   FROM}
+\CommentTok{#                   printvis.hist_casevol}
+\CommentTok{#                   JOIN}
+\CommentTok{#                   printvis.workdayofweek ON predicted_availdate = workday_date}
+\CommentTok{#                   WHERE }
+\CommentTok{#                   hist_whse = ",var_whse," and hist_build = ",var_build," }
+\CommentTok{#                   AND hist_equip = 'PALLETJACK'}
+\CommentTok{#                   AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')}
+\CommentTok{#                   AND predicted_availhour BETWEEN 7 AND 16}
+\CommentTok{#                   GROUP BY predicted_availdate , hist_equip, }
+\CommentTok{#                   CASE}
+\CommentTok{#                   WHEN predicted_availhour < 6 THEN 6}
+\CommentTok{#                   WHEN predicted_availhour > 16 THEN 16}
+\CommentTok{#                   ELSE predicted_availhour}
+\CommentTok{#                   }\RegionMarkerTok{END}
+\CommentTok{#                   ORDER BY predicted_availdate , CASE}
+\CommentTok{#                   WHEN predicted_availhour < 6 THEN 6}
+\CommentTok{#                   WHEN predicted_availhour > 16 THEN 16}
+\CommentTok{#                   ELSE predicted_availhour}
+\CommentTok{#                   }\RegionMarkerTok{END}\CommentTok{", sep = "")}
+\CommentTok{# data <- query(sqlquery)}
+\CommentTok{# }
+\CommentTok{# DT::datatable(head(data))}
+\CommentTok{# head(data)}
+\end{Highlighting}
+\end{Shaded}
+
 \section{Set seed and determine training and test
 data}\label{set-seed-and-determine-training-and-test-data}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# set.seed(222)}
+\CommentTok{# trainIndex <- createDataPartition(data$BOXES, }
+\CommentTok{#                                   p = .75, }
+\CommentTok{#                                   list = FALSE, }
+\CommentTok{#                                   times = 1)}
+\CommentTok{# }
+\CommentTok{# dataTrain <- data[ trainIndex,]}
+\CommentTok{# dataTest  <- data[-trainIndex,]}
+\CommentTok{# }
+\CommentTok{# DT::datatable(head(dataTrain))}
+\CommentTok{# DT::datatable(head(dataTest))}
+\CommentTok{# }
+\CommentTok{# }
+\CommentTok{# data_formula_boxes <- BOXES ~ HOUR + WORKDAY + MONTHWEEK + WEEKDAY + MONTHDAY + MONTH + YEAR + BEFVAC + AFTVAC + BEFCHR + AFTCHR}
+\CommentTok{# }
+\CommentTok{# #boxes data training}
+\CommentTok{# dataX_Train_box <- build.x(data_formula_boxes, data=dataTrain,}
+\CommentTok{#                        contrasts=FALSE,}
+\CommentTok{#                        sparse=TRUE)}
+\CommentTok{# dataY_Train_box <- build.y(data_formula_boxes,data=dataTrain) }
+\CommentTok{# }
+\CommentTok{# dataX_Test_box <- build.x(data_formula_boxes, data=dataTest,}
+\CommentTok{#                       contrasts=FALSE,}
+\CommentTok{#                       sparse=TRUE)}
+\CommentTok{# dataY_Test_box <- build.y(data_formula_boxes,data=dataTest)}
+\CommentTok{# }
+\CommentTok{# xgTrain_box <- xgb.DMatrix(data=dataX_Train_box,}
+\CommentTok{#                        label=dataY_Train_box)}
+\CommentTok{# }
+\CommentTok{# xgVal_box <- xgb.DMatrix(data=dataX_Test_box,}
+\CommentTok{#                      label=dataY_Test_box)}
+\end{Highlighting}
+\end{Shaded}
 
 \section{Create the Linear regression
 model}\label{create-the-linear-regression-model}
@@ -145,149 +302,77 @@ model}\label{create-the-linear-regression-model}
 \caption{Linear Regression - Least Squares}
 \end{figure}
 
-\begin{verbatim}
-## [1] 84.03009
-\end{verbatim}
-
-\includegraphics{Ed_Demo_files/figure-latex/unnamed-chunk-4-1.pdf}
-
 \section{Create the decision tree
 model}\label{create-the-decision-tree-model}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{model.dt <-}\StringTok{ }\KeywordTok{rpart}\NormalTok{(data_formula_boxes, }\DataTypeTok{method =} \StringTok{"anova"}\NormalTok{, }\DataTypeTok{data=}\NormalTok{dataTrain)}
-\NormalTok{prediction.dt <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model.dt, }\DataTypeTok{newdata =}\NormalTok{ dataTest)}
-\NormalTok{rmse.dt <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(}\KeywordTok{mean}\NormalTok{((dataTest}\OperatorTok{$}\NormalTok{BOXES}\OperatorTok{-}\NormalTok{prediction.dt)}\OperatorTok{^}\DecValTok{2}\NormalTok{))}
-\NormalTok{rmse.dt}
+\CommentTok{# model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain)}
+\CommentTok{# prediction.dt <- predict(model.dt, newdata = dataTest)}
+\CommentTok{# rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))}
+\CommentTok{# rmse.dt}
+\CommentTok{# plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7)}
+\CommentTok{# abline(0,1,lwd=2)}
 \end{Highlighting}
 \end{Shaded}
-
-\begin{verbatim}
-## [1] 54.70869
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\KeywordTok{plot}\NormalTok{(dataTest}\OperatorTok{$}\NormalTok{BOXES,prediction.dt,}\DataTypeTok{col=}\StringTok{'blue'}\NormalTok{,}\DataTypeTok{main=}\StringTok{'Real vs predicted Decision Tree'}\NormalTok{,}\DataTypeTok{pch=}\DecValTok{18}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.7}\NormalTok{)}
-\KeywordTok{abline}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{,}\DataTypeTok{lwd=}\DecValTok{2}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
-
-\includegraphics{Ed_Demo_files/figure-latex/unnamed-chunk-5-1.pdf}
 
 \section{Create the random forest
 model}\label{create-the-random-forest-model}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{dataTrain_fac <-}\StringTok{ }\NormalTok{dataTrain }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate_if}\NormalTok{(is.character, as.factor)}
-\NormalTok{dataTest_fac <-}\StringTok{ }\NormalTok{dataTest }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate_if}\NormalTok{(is.character, as.factor)}
-\NormalTok{model.rf <-}\StringTok{ }\KeywordTok{randomForest}\NormalTok{(data_formula_boxes, }\DataTypeTok{data =}\NormalTok{ dataTrain_fac)}
-\NormalTok{prediction.rf <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model.rf, }\DataTypeTok{newdata =}\NormalTok{ dataTest_fac)}
-\NormalTok{rmse.rf <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(}\KeywordTok{mean}\NormalTok{((dataTest_fac}\OperatorTok{$}\NormalTok{BOXES}\OperatorTok{-}\NormalTok{prediction.rf)}\OperatorTok{^}\DecValTok{2}\NormalTok{))}
-\NormalTok{rmse.rf}
+\CommentTok{# dataTrain_fac <- dataTrain %>% mutate_if(is.character, as.factor)}
+\CommentTok{# dataTest_fac <- dataTest %>% mutate_if(is.character, as.factor)}
+\CommentTok{# model.rf <- randomForest(data_formula_boxes, data = dataTrain_fac)}
+\CommentTok{# prediction.rf <- predict(model.rf, newdata = dataTest_fac)}
+\CommentTok{# rmse.rf <- sqrt(mean((dataTest_fac$BOXES-prediction.rf)^2))}
+\CommentTok{# rmse.rf}
+\CommentTok{# plot(dataTest$BOXES,prediction.rf,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)}
+\CommentTok{# abline(0,1,lwd=2)}
 \end{Highlighting}
 \end{Shaded}
 
-\begin{verbatim}
-## [1] 46.32067
-\end{verbatim}
+\section{Create the neural net mode}\label{create-the-neural-net-mode}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\KeywordTok{plot}\NormalTok{(dataTest}\OperatorTok{$}\NormalTok{BOXES,prediction.rf,}\DataTypeTok{col=}\StringTok{'blue'}\NormalTok{,}\DataTypeTok{main=}\StringTok{'Real vs predicted Random Forest'}\NormalTok{,}\DataTypeTok{pch=}\DecValTok{18}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.7}\NormalTok{)}
-\KeywordTok{abline}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{,}\DataTypeTok{lwd=}\DecValTok{2}\NormalTok{)}
+\CommentTok{# library('neuralnet')}
+\CommentTok{# }
+\CommentTok{# maxs <- apply(dataTrain, 2, max)}
+\CommentTok{# mins <- apply(dataTrain, 2, min)}
+\CommentTok{# scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))}
+\CommentTok{# scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))}
+\CommentTok{# n <- names(scaled_train)}
+\CommentTok{# f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))}
+\CommentTok{# }
+\CommentTok{# nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)}
+\CommentTok{# pr.nn <- compute(nn,scaled_test[,0:11])}
+\CommentTok{# pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)}
+\CommentTok{# test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)}
+\CommentTok{# rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))}
+\CommentTok{# rmse.nn}
+\CommentTok{# }
+\CommentTok{#  plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7)}
+\CommentTok{#  abline(0,1,lwd=2)}
 \end{Highlighting}
 \end{Shaded}
-
-\includegraphics{Ed_Demo_files/figure-latex/unnamed-chunk-6-1.pdf}
-
-\section{\texorpdfstring{Create the neural net model \textbf{\emph{Clean
-up the code to match the other
-chunks}}}{Create the neural net model Clean up the code to match the other chunks}}\label{create-the-neural-net-model-clean-up-the-code-to-match-the-other-chunks}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\KeywordTok{library}\NormalTok{(}\StringTok{'neuralnet'}\NormalTok{)}
-
-\NormalTok{maxs <-}\StringTok{ }\KeywordTok{apply}\NormalTok{(dataTrain, }\DecValTok{2}\NormalTok{, max)}
-\NormalTok{mins <-}\StringTok{ }\KeywordTok{apply}\NormalTok{(dataTrain, }\DecValTok{2}\NormalTok{, min)}
-\NormalTok{scaled_train <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{scale}\NormalTok{(dataTrain, }\DataTypeTok{center =}\NormalTok{ mins, }\DataTypeTok{scale =}\NormalTok{ maxs }\OperatorTok{-}\StringTok{ }\NormalTok{mins))}
-\NormalTok{scaled_test <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(}\KeywordTok{scale}\NormalTok{(dataTest, }\DataTypeTok{center =}\NormalTok{ mins, }\DataTypeTok{scale =}\NormalTok{ maxs }\OperatorTok{-}\StringTok{ }\NormalTok{mins))}
-\NormalTok{n <-}\StringTok{ }\KeywordTok{names}\NormalTok{(scaled_train)}
-\NormalTok{f <-}\StringTok{ }\KeywordTok{as.formula}\NormalTok{(}\KeywordTok{paste}\NormalTok{(}\StringTok{"BOXES ~"}\NormalTok{, }\KeywordTok{paste}\NormalTok{(n[}\OperatorTok{!}\NormalTok{n }\OperatorTok{%in%}\StringTok{ "BOXES"}\NormalTok{], }\DataTypeTok{collapse =} \StringTok{" + "}\NormalTok{)))}
-
-\NormalTok{nn <-}\StringTok{ }\KeywordTok{neuralnet}\NormalTok{(f,}\DataTypeTok{data=}\NormalTok{scaled_train,}\DataTypeTok{hidden=}\KeywordTok{c}\NormalTok{(}\DecValTok{8}\NormalTok{,}\DecValTok{4}\NormalTok{),}\DataTypeTok{linear.output=}\NormalTok{F)}
-\NormalTok{pr.nn <-}\StringTok{ }\KeywordTok{compute}\NormalTok{(nn,scaled_test[,}\DecValTok{0}\OperatorTok{:}\DecValTok{11}\NormalTok{])}
-\NormalTok{pr.nn_ <-}\StringTok{ }\NormalTok{pr.nn}\OperatorTok{$}\NormalTok{net.result}\OperatorTok{*}\NormalTok{(}\KeywordTok{max}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES)}\OperatorTok{-}\KeywordTok{min}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES))}\OperatorTok{+}\KeywordTok{min}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES)}
-\NormalTok{test.r <-}\StringTok{ }\NormalTok{(scaled_test}\OperatorTok{$}\NormalTok{BOXES)}\OperatorTok{*}\NormalTok{(}\KeywordTok{max}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES)}\OperatorTok{-}\KeywordTok{min}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES))}\OperatorTok{+}\KeywordTok{min}\NormalTok{(data}\OperatorTok{$}\NormalTok{BOXES)}
-\NormalTok{rmse.nn <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(}\KeywordTok{mean}\NormalTok{((dataTest}\OperatorTok{$}\NormalTok{BOXES}\OperatorTok{-}\NormalTok{pr.nn_)}\OperatorTok{^}\DecValTok{2}\NormalTok{))}
-\NormalTok{rmse.nn}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## [1] 51.01262684
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
- \KeywordTok{plot}\NormalTok{(dataTest}\OperatorTok{$}\NormalTok{BOXES,pr.nn_,}\DataTypeTok{col=}\StringTok{'blue'}\NormalTok{,}\DataTypeTok{main=}\StringTok{'Real vs predicted Neural Net'}\NormalTok{,}\DataTypeTok{pch=}\DecValTok{18}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.7}\NormalTok{)}
- \KeywordTok{abline}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{,}\DataTypeTok{lwd=}\DecValTok{2}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
-
-\includegraphics{Ed_Demo_files/figure-latex/unnamed-chunk-7-1.pdf}
 
 \section{Create the boosted random forest
 model}\label{create-the-boosted-random-forest-model}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\KeywordTok{tic}\NormalTok{()}
-\NormalTok{model.xgb <-}\StringTok{ }\KeywordTok{xgb.train}\NormalTok{(}\DataTypeTok{data=}\NormalTok{xgTrain_box, }\DataTypeTok{objective=}\StringTok{'reg:linear'}\NormalTok{, }\DataTypeTok{eval_metric=}\StringTok{'rmse'}\NormalTok{, }\DataTypeTok{booster=}\StringTok{'gbtree'}\NormalTok{, }\DataTypeTok{watchlist =} \KeywordTok{list}\NormalTok{(}\DataTypeTok{train=}\NormalTok{xgTrain_box, }\DataTypeTok{validate=}\NormalTok{xgVal_box), }
-                  \DataTypeTok{early_stopping_rounds=}\DecValTok{100}\NormalTok{, }\DataTypeTok{nrounds =} \DecValTok{100000}\NormalTok{, }\DataTypeTok{num_parallel_tree=}\DecValTok{20}\NormalTok{, }\DataTypeTok{print_every_n =} \DecValTok{20}\NormalTok{, }\DataTypeTok{nthread=}\DecValTok{8}\NormalTok{,}\DataTypeTok{eta =}\NormalTok{ .}\DecValTok{1}\NormalTok{, }\DataTypeTok{max_depth =} \DecValTok{7}\NormalTok{)}
+\CommentTok{# tic()}
+\CommentTok{# model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rmse', booster='gbtree', watchlist = list(train=xgTrain_box, validate=xgVal_box),}
+\CommentTok{#                   early_stopping_rounds=100, nrounds = 100000, num_parallel_tree=20, print_every_n = 20, nthread=8,eta = .1, max_depth = 7)}
+\CommentTok{# toc()}
+\CommentTok{# dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)}
+\CommentTok{# }
+\CommentTok{# prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)}
+\CommentTok{# plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest',pch=18, cex=0.7)}
+\CommentTok{#  abline(0,1,lwd=2)}
 \end{Highlighting}
 \end{Shaded}
-
-\begin{verbatim}
-## [1]  train-rmse:206.662491   validate-rmse:206.324921 
-## Multiple eval metrics are present. Will use validate_rmse for early stopping.
-## Will train until validate_rmse hasn't improved in 100 rounds.
-## 
-## [21] train-rmse:49.004692    validate-rmse:51.825565 
-## [41] train-rmse:37.739918    validate-rmse:44.912476 
-## [61] train-rmse:34.274696    validate-rmse:44.728710 
-## [81] train-rmse:32.041958    validate-rmse:45.088673 
-## [101]    train-rmse:30.619726    validate-rmse:45.431015 
-## [121]    train-rmse:28.945339    validate-rmse:45.697258 
-## [141]    train-rmse:27.396843    validate-rmse:46.126431 
-## Stopping. Best iteration:
-## [55] train-rmse:35.154510    validate-rmse:44.669308
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\KeywordTok{toc}\NormalTok{()}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## 37.64 sec elapsed
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{dataTest.xgb <-}\StringTok{ }\KeywordTok{build.x}\NormalTok{(data_formula_boxes, }\DataTypeTok{data=}\NormalTok{dataTest, }\DataTypeTok{contrasts =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{sparse =} \OtherTok{TRUE}\NormalTok{)}
-
-\NormalTok{prediction.xgb <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model.xgb, }\DataTypeTok{newdata =}\NormalTok{ dataTest.xgb)}
-\KeywordTok{plot}\NormalTok{(dataTest}\OperatorTok{$}\NormalTok{BOXES,prediction.xgb,}\DataTypeTok{col=}\StringTok{'blue'}\NormalTok{,}\DataTypeTok{main=}\StringTok{'Real vs predicted Boosted Forest'}\NormalTok{,}\DataTypeTok{pch=}\DecValTok{18}\NormalTok{, }\DataTypeTok{cex=}\FloatTok{0.7}\NormalTok{)}
- \KeywordTok{abline}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{,}\DataTypeTok{lwd=}\DecValTok{2}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
-
-\includegraphics{Ed_Demo_files/figure-latex/unnamed-chunk-8-1.pdf}
 
 
 \end{document}
