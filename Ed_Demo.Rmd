@@ -8,9 +8,9 @@ output:
 
 #R Statistics Demo - Model Comparison
 
-Goal of demo is to accurately predict Sparks case pick volume by hour/day.
+Goal of demo is to accurately predict Sparks case pick pallet jack volume by hour/day.
 
-Dependent variable: boxes received
+Dependent variable: boxes received (customer orders) that require a pallet jack
 
 
 Independent variables:
@@ -49,7 +49,7 @@ purrr::walk(packages, library, character.only = TRUE)
 #mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="127.0.0.1")
 
 #NY Server Prod
-mychannel <- dbConnect(MySQL(), user="root", pass="dave41", host="127.0.0.1")
+mychannel <- dbConnect(MySQL(), user="root", pass="", host="127.0.0.1")
 
 #Google Prod
 #mychannel <- dbConnect(MySQL(), user="bentley", pass="dave41", host="104.154.153.225")
@@ -85,9 +85,9 @@ Pull in historical data to determine boxes shipped by hour.  Store in table with
 
 sqlquery <- paste("SELECT
                   CASE
-                  WHEN predicted_availhour < 6 THEN 6
-                  WHEN predicted_availhour > 16 THEN 16
-                  ELSE predicted_availhour
+                    WHEN predicted_availhour < 6 THEN 6
+                    WHEN predicted_availhour > 16 THEN 16
+                    ELSE predicted_availhour
                   END AS HOUR,
                   workday_workday AS WORKDAY,
                   workday_weekofmon AS MONTHWEEK,
@@ -100,33 +100,33 @@ sqlquery <- paste("SELECT
                   workday_befchrist AS BEFCHR,
                   workday_aftchrist AS AFTCHR,
                   SUM(CASE
-                  WHEN
-                  hist_twoday = 1
-                  AND predicted_availhour < 6
-                  THEN
-                  1
-                  ELSE 1
-                  END) AS BOXES
+                    WHEN
+                    hist_twoday = 1
+                    AND predicted_availhour < 6
+                    THEN
+                    1
+                    ELSE 1
+                    END) AS BOXES
                   FROM
-                  printvis.hist_casevol
+                    printvis.hist_casevol
                   JOIN
-                  printvis.workdayofweek ON predicted_availdate = workday_date
+                    printvis.workdayofweek ON predicted_availdate = workday_date
                   WHERE
-                  hist_whse = ",var_whse," and hist_build = ",var_build,"
-                  AND hist_equip = 'PALLETJACK'
-                  AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
-                  AND predicted_availhour BETWEEN 7 AND 16
+                    hist_whse = ",var_whse," and hist_build = ",var_build,"
+                    AND hist_equip = 'PALLETJACK'
+                    AND cutoff_group NOT IN ('TRUCK' , 'COLGATE')
+                    AND predicted_availhour BETWEEN 7 AND 16
                   GROUP BY predicted_availdate , hist_equip,
-                  CASE
-                  WHEN predicted_availhour < 6 THEN 6
-                  WHEN predicted_availhour > 16 THEN 16
-                  ELSE predicted_availhour
-                  END
-                  ORDER BY predicted_availdate , CASE
-                  WHEN predicted_availhour < 6 THEN 6
-                  WHEN predicted_availhour > 16 THEN 16
-                  ELSE predicted_availhour
-                  END", sep = "")
+                    CASE
+                    WHEN predicted_availhour < 6 THEN 6
+                    WHEN predicted_availhour > 16 THEN 16
+                    ELSE predicted_availhour
+                    END
+                    ORDER BY predicted_availdate , CASE
+                    WHEN predicted_availhour < 6 THEN 6
+                    WHEN predicted_availhour > 16 THEN 16
+                    ELSE predicted_availhour
+                    END", sep = "")
 data <- query(sqlquery)
 
 #DT::datatable(head(data))
@@ -193,10 +193,10 @@ Multiple linear regression attempts to model the relationship between two or mor
 model.lm <- lm(data_formula_boxes, data=dataTrain)
 prediction.lm <- predict(model.lm, newdata=dataTest)
 rmse.lm <- sqrt(mean((dataTest$BOXES-prediction.lm)^2))
-rmse.lm
-plot(dataTest$BOXES,prediction.lm,col='blue',main='Real vs predicted Linear Regression',pch=18, cex=0.7)
-abline(0,1,lwd=2)
 
+plot(dataTest$BOXES,prediction.lm,col='blue',main='Real vs predicted Linear Regression',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
+abline(0,1,lwd=2)
+rmse.lm
 ```
 
 
@@ -219,12 +219,10 @@ abline(0,1,lwd=2)
 model.dt <- rpart(data_formula_boxes, method = "anova", data=dataTrain, minsplit = 100)
 prediction.dt <- predict(model.dt, newdata = dataTest)
 rmse.dt <- sqrt(mean((dataTest$BOXES-prediction.dt)^2))
-rmse.dt
-plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.dt,col='blue',main='Real vs predicted Decision Tree',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
 abline(0,1,lwd=2)
-
 fancyRpartPlot((model.dt))
-
+rmse.dt
 ```
 
 
@@ -243,33 +241,45 @@ dataTest_fac <- dataTest %>% mutate_if(is.character, as.factor)
 model.rf <- randomForest(data_formula_boxes, data = dataTrain_fac)
 prediction.rf <- predict(model.rf, newdata = dataTest_fac)
 rmse.rf <- sqrt(mean((dataTest_fac$BOXES-prediction.rf)^2))
-rmse.rf
-plot(dataTest$BOXES,prediction.rf,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.rf,col='blue',main='Real vs predicted Random Forest',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
 abline(0,1,lwd=2)
+rmse.rf
 
 ```
 
 
 #Create the neural net model
+
+###Advantages
+* Ususally more accurate predictions than random forest
+
+
+###Disadvantages
+* Black box
+* Cannot explain weights on independent variables
+
+
 ```{r}
-# library('neuralnet')
-# 
-# maxs <- apply(dataTrain, 2, max)
-# mins <- apply(dataTrain, 2, min)
-# scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))
-# scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))
-# n <- names(scaled_train)
-# f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
-# 
-# nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)
-# pr.nn <- compute(nn,scaled_test[,0:11])
-# pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
-# test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
-# rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
-# rmse.nn
-# 
-#  plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7)
-#  abline(0,1,lwd=2)
+library('neuralnet')
+
+maxs <- apply(dataTrain, 2, max)
+mins <- apply(dataTrain, 2, min)
+scaled_train <- as.data.frame(scale(dataTrain, center = mins, scale = maxs - mins))
+scaled_test <- as.data.frame(scale(dataTest, center = mins, scale = maxs - mins))
+n <- names(scaled_train)
+f <- as.formula(paste("BOXES ~", paste(n[!n %in% "BOXES"], collapse = " + ")))
+
+nn <- neuralnet(f,data=scaled_train,hidden=c(8,4),linear.output=F)
+pr.nn <- compute(nn,scaled_test[,0:11])
+pr.nn_ <- pr.nn$net.result*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+test.r <- (scaled_test$BOXES)*(max(data$BOXES)-min(data$BOXES))+min(data$BOXES)
+rmse.nn <- sqrt(mean((dataTest$BOXES-pr.nn_)^2))
+rmse.nn
+
+plot(dataTest$BOXES,pr.nn_,col='blue',main='Real vs predicted Neural Net',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
+abline(0,1,lwd=2)
+
+plot(nn)
 
 ```
 
@@ -297,7 +307,7 @@ model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rm
 dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
 
 prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
-plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 1',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 1',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
  abline(0,1,lwd=2)
 
 ```
@@ -311,7 +321,7 @@ model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rm
 dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
 
 prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
-plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 2',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 2',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
  abline(0,1,lwd=2)
 
 ```
@@ -324,7 +334,7 @@ model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rm
 dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
 
 prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
-plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 3',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 3',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
  abline(0,1,lwd=2)
 
 ```
@@ -337,7 +347,7 @@ model.xgb <- xgb.train(data=xgTrain_box, objective='reg:linear', eval_metric='rm
 dataTest.xgb <- build.x(data_formula_boxes, data=dataTest, contrasts = FALSE, sparse = TRUE)
 
 prediction.xgb <- predict(model.xgb, newdata = dataTest.xgb)
-plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 4',pch=18, cex=0.7)
+plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Forest - Example 4',pch=18, cex=0.7, xlab = 'Actual Boxes Received', ylab = "Predicted Boxes")
  abline(0,1,lwd=2)
 dygraph(model.xgb$evaluation_log)
 xgb.plot.importance(xgb.importance(model.xgb, feature_names=colnames(dataTrain)))
@@ -367,11 +377,66 @@ plot(dataTest$BOXES,prediction.xgb,col='blue',main='Real vs predicted Boosted Fo
 ##Pull in the dependent variables for the next day
 
 ```{r}
+date_today <- Sys.Date()
 
+sqlquery <- paste("SELECT 
+                    equip_type as EQUIP,
+                    hour_hour AS HOUR,
+                    workday_workday AS WORKDAY,
+                    workday_weekofmon AS MONTHWEEK,
+                    workday_weekday AS WEEKDAY,
+                    workday_dayofmon AS MONTHDAY,
+                    workday_month AS MONTH,
+                    YEAR(workday_date) AS YEAR,
+                    workday_befvac AS BEFVAC,
+                    workday_aftvac AS AFTVAC,
+                    workday_befchrist AS BEFCHR,
+                    workday_aftchrist AS AFTCHR,
+                    0 AS BOXES
+                  FROM
+                    printvis.workdayofweek
+                  JOIN
+                    printvis.forecasthours
+                  JOIN 
+                    printvis.caseforecast_equip
+                  WHERE
+                    workday_date between '",date_today,"' AND '",date_today,"'
+                    AND hour_hour BETWEEN 7 AND 16
+                    AND equip_type = 'PALLETJACK'
+                  ORDER BY workday_date, equip_type, hour_hour", sep = "")
+preddata <- query(sqlquery)
+#need to build preddata as build.x
+data_new_boxes <- build.x(data_formula_boxes, data=preddata, contrasts = FALSE, sparse = TRUE)
 
+preddata
 
 ```
 
+###Build the prediction dataframe
+
+```{r}
+
+sqlquery <- paste("SELECT 
+                    ",var_whse,", ",var_build,", workday_date, hour_hour, equip_type
+                  FROM
+                    printvis.workdayofweek
+                  JOIN
+                    printvis.forecasthours
+                  JOIN
+                    printvis.caseforecast_equip
+                  WHERE
+                    workday_date BETWEEN  '",date_today,"' AND '",date_today,"'
+                    AND hour_hour BETWEEN 7 AND 16
+                    AND equip_type = 'PALLETJACK'
+                  ORDER BY workday_date , equip_type , hour_hour", sep = "")
+forecast_insert <- query(sqlquery)
+
+
+forecast_insert$boxes <- predict(model.xgb,newdata = data_new_boxes)
+
+forecast_insert
+
+```
 
 
 
